@@ -1,5 +1,7 @@
 # mcp-test
 
+[![CI](https://github.com/zhengqiuyang/mcp-test/actions/workflows/ci.yml/badge.svg)](https://github.com/zhengqiuyang/mcp-test/actions/workflows/ci.yml)
+
 > Functional **and** security testing for MCP (Model Context Protocol) servers — deterministic injection probes, one command, one exit code.
 
 `mcp-test` turns a small YAML file into a full test run against any MCP server that speaks the stdio
