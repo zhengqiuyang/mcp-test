@@ -65,7 +65,7 @@ export interface RunnerOptions {
   timeoutMs?: number;
 }
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 /** Preview of a text value for expected/actual reporting. */
 function preview(text: string): string {

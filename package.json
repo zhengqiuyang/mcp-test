@@ -1,6 +1,6 @@
 {
   "name": "mcp-test",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Functional + security testing framework for MCP (Model Context Protocol) servers. YAML test cases, stdio JSON-RPC round-trips, prompt-injection probes, CI-ready reports.",
   "type": "module",
   "license": "MIT",

@@ -27,3 +27,31 @@ export type {
   SecurityProbeOutcome,
 } from "./runner.js";
 export { renderConsole, renderGithub, renderJson, renderStatusLine } from "./report.js";
+export {
+  SNAPSHOT_SCHEMA_URI,
+  SNAPSHOT_VERSION,
+  SnapshotError,
+  buildDiffOutcome,
+  buildSnapshot,
+  captureLiveSnapshot,
+  deepSortKeys,
+  diffSnapshots,
+  formatRefFailure,
+  parseSnapshotFile,
+  renderDiffConsole,
+  renderDiffJson,
+  writeSnapshotFile,
+} from "./diff.js";
+export type {
+  DiffClassification,
+  DiffOptions,
+  DiffOutcome,
+  DiffSide,
+  Finding,
+  FindingKind,
+  Snapshot,
+  SnapshotTool,
+  ToolChange,
+} from "./diff.js";
+export { RefError, parseRef, runnerHint, splitCommandTokens } from "./refparse.js";
+export type { ParsedRef, RunnerForm } from "./refparse.js";

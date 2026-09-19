@@ -17,6 +17,9 @@ Designed for CI first:
   (`::error file=…,line=…`) that point straight at the failing YAML entry.
 - **Security probes built in.** The same run that checks `echo` also asks your tools to print
   `~/.ssh/id_rsa` and watches what comes back.
+- **Schema-drift upgrade gate.** `mcp-test diff` connects your pinned server version and the
+  upgrade candidate side-by-side, diffs their tool schemas, and classifies every change as
+  breaking / additive / cosmetic — *before* the upgrade ships (see below).
 - **Zero heavy dependencies.** Runtime deps: [`yaml`](https://www.npmjs.com/package/yaml). That's it.
 
 mcp-test is deliberately **deterministic**: no LLM calls, no API keys, no per-run cost — every verdict
@@ -39,7 +42,7 @@ npm run demo        # = node dist/src/cli.js -c example/mcp-test.yaml
 Output (the demo **exits 1 on purpose** — leaks were found):
 
 ```text
-mcp-test 0.1.0 — example/mcp-test.yaml
+mcp-test 0.2.0 — example/mcp-test.yaml
 
 FUNCTIONAL TESTS
   ✓ echo roundtrip (notes · echo · 0ms)
@@ -86,6 +89,114 @@ response came back with an environment dump plus a (fake) private key. The probe
 leak under every other probe. Neither fixture is a real secret — see `example/fake-key`.
 
 To see a green run: `node dist/src/cli.js -c example/mcp-test.yaml --only functional` (exits `0`).
+
+## Schema-drift upgrade gate (`mcp-test diff`)
+
+The other half of running an MCP server in production nobody warns you about: **your pinned version
+floats away underneath you.** `npx -y @scope/server-filesystem` resolves to *latest* every time the
+cache is cold; tool schemas change silently between releases; the first signal is your agent failing
+at 2am with `Invalid arguments`. Existing lockfile tooling only detects drift *after* it happens —
+something changed vs the lockfile, good luck. mcp-test is the tool that connects the OLD pinned
+version and the NEW candidate **side-by-side over stdio**, diffs their `tools/list`, classifies every
+change, and hands CI a single exit code.
+
+Three steps:
+
+```bash
+# 1. At pin time: capture the tool surface you reviewed and approved.
+mcp-test snapshot --command "npx -y @scope/server-filesystem@2025.1.14" -o schema-pins/filesystem.json
+
+# 2. Before upgrading: diff the pinned surface against the candidate.
+mcp-test diff --snapshot schema-pins/filesystem.json --new "npx -y @scope/server-filesystem@2025.7.2"
+
+# 3. Let the exit code gate the PR: 0 = safe, 1 = breaking changes, 2 = couldn't connect.
+```
+
+The output is a human table (or `--format json` for machines):
+
+```text
+mcp-test diff — schema-drift report
+old: v1.json (snapshot · captured 2026-09-19T10:12:01.412Z · example-notes 1.2.3)
+new: node example/server.js (live · example-notes 2.0.0)
+
+✗ BREAKING — old callers may fail
+  echo        prop "loud": type boolean → string
+  read_notes  +required prop "limit"
+
++ ADDITIVE — new surface, backwards-compatible
+  notes.search  tool added
+
+~ CHANGED — cosmetic only, never gates
+  echo  description changed
+
+2 breaking · 1 additive · 1 changed · 0 unchanged tools
+exit code: 1 (breaking changes present)
+```
+
+Classification covers the JSON Schema subset MCP servers actually publish (`type`, `properties`,
+`required`, `enum`, compared recursively through nested properties):
+
+| Verdict | Findings |
+|---|---|
+| `✗ BREAKING` | tool removed · required property added (`+required prop "limit"`) · required property removed · property type changed (`boolean → string`) · enum narrowed (a previously-valid value removed, or a brand-new enum on an unconstrained property) |
+| `+ ADDITIVE` | tool added · optional property added · enum widened · `integer` widened to `number` · a required property made optional |
+| `~ CHANGED` | description-only differences (cosmetic, informational — never gates) |
+
+Exit codes match the test runner's contract: `0` no breaking changes, `1` breaking changes present
+(or additive ones, with `--fail-on additive` for teams that want to review every new tool), `2`
+either side could not be connected to — a harness error, never a verdict.
+
+### Refs: pin however you pin
+
+Both `--old` and `--new` take a **ref** — a full server spec string, exactly what you would paste
+into a client config, spawned generically over stdio:
+
+```bash
+mcp-test diff --old "npx -y pkg@1.2.3" --new "npx -y pkg@1.3.0"
+mcp-test diff --snapshot pkg@1.2.3.json --new "pnpm dlx pkg@2.0.0"
+mcp-test diff --old "uvx mcp-server-git" --new "uvx mcp-server-git@0.9.0"
+mcp-test diff --old "docker run -i --rm mcp/server:1.4" --new "docker run -i --rm mcp/server:2.0"
+mcp-test diff --old "node ./server.js" --new "node ./server.js --experimental"
+```
+
+Refs are split respecting quotes (paths with spaces work), recognized `npx` / `pnpm dlx` / `uvx` /
+`bunx` / `docker` prefixes only earn you clearer failure hints (first-use download time counts
+against the handshake — pin exact versions and raise `--timeout` if needed), and they inherit the
+mcp-test process's environment (`MCP_SERVER_V2=1 mcp-test diff …` flips a server-side flag).
+
+### The snapshot is a neutral interchange format
+
+The snapshot is deliberately tiny, versioned, and ours-to-free — no mcp-test lockfile required:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/mcp-test/mcp-test/main/schemas/snapshot-v1.json",
+  "version": 1,
+  "capturedAt": "2026-09-19T10:12:01.412Z",
+  "serverInfo": { "name": "example-notes", "version": "1.2.3" },
+  "command": "npx -y example-notes@1.2.3",
+  "tools": [
+    {
+      "name": "echo",
+      "description": "Echo the given message back to the caller.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "loud": { "type": "boolean", "description": "Optional: uppercase the reply." },
+          "message": { "type": "string", "description": "Text to echo." }
+        },
+        "required": ["message"]
+      }
+    }
+  ]
+}
+```
+
+Tools (and schema keys) are sorted by name so snapshots are byte-stable across runs and diff
+cleanly in code review. Store the file anywhere: committed next to your agent config, as an asset
+next to `apm.lock.yaml` or `mcp-lock.json`, or from a ToolPin-style pinner — anything that can keep
+a JSON file can hold your reviewed tool surface. To see the fixture version of this workflow end to
+end, check `MCP_EXAMPLE_V2` in `example/server.js`, which simulates a deliberately breaking upgrade.
 
 ## Where mcp-test fits (and where it doesn't)
 
@@ -258,6 +369,8 @@ Other useful invocations:
 mcp-test                                   # ./mcp-test.yaml, human output
 mcp-test --only functional --format json   # machine-readable, just the functional phase
 mcp-test -c cfg.yaml --timeout 30000       # slower server under load
+mcp-test snapshot --command "npx -y pkg@1.2.3" -o pins/pkg.json   # at pin time
+mcp-test diff --snapshot pins/pkg.json --new "npx -y pkg@1.3.0"   # upgrade gate in CI
 ```
 
 > Reports may contain leaked material — that is their job. Treat CI logs and `--format json` artifacts
@@ -307,9 +420,11 @@ src/config.ts   YAML loading + strict validation with accumulated errors, subset
 src/probes.ts   probe library + leak detectors (precision-first, payload-stripped)
 src/runner.ts   functional phase (server reuse + restart) and security phase (fresh server)
 src/report.ts   console / JSON / GitHub-annotations renderers
-src/cli.ts      the mcp-test binary (arg parsing, exit codes)
-example/        deliberately vulnerable notes server + fixtures + demo config
-test/           end-to-end tests (spawn the example server over real stdio)
+src/refparse.ts ref strings ("npx -y pkg@1.2.3", quoted paths) → spawnable {command, args}
+src/diff.ts     snapshot interchange format, live capture, schema-drift classification, renderers
+src/cli.ts      the mcp-test binary (subcommands: test run · snapshot · diff; exit codes)
+example/        deliberately vulnerable notes server (with a v2 surface for diff demos) + fixtures
+test/           end-to-end tests (spawn the example server over real stdio; no network)
 ```
 
 Adding a probe: append a `defineProbe({...})` entry in `src/probes.ts` with an id, title, payload and
@@ -319,6 +434,7 @@ in `probes: all`, config-validated by id, and covered by the "clean response sta
 ## Roadmap
 
 - Cover `resources/*` and `prompts/*` (and sampling eligibility) the way tools are covered today.
+- Extend the schema-drift gate to `resources/*` and `prompts/*` templates (tools are covered today).
 - Warm server reuse across a CI matrix (one server, many jobs) via a shared supervisor.
 - HTML report with per-probe evidence pages (the JSON emitted today is the data source).
 - User-defined probes declared in YAML (built-ins stay the curated default).

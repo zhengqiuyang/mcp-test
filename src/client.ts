@@ -44,7 +44,7 @@ export interface CallToolResult {
 }
 
 const PROTOCOL_VERSION = "2025-06-18";
-const CLIENT_INFO = { name: "mcp-test", version: "0.1.0" };
+const CLIENT_INFO = { name: "mcp-test", version: "0.2.0" };
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 const STDERR_TAIL_CHARS = 4_000;
 /** Guard against a server that streams endless bytes with no newline. */
