@@ -1,0 +1,47 @@
+# mcp-test example configuration.
+# Run from the repo root:  npm run demo
+# (note: the demo exits 1 on purpose — the example server is deliberately vulnerable)
+servers:
+  notes:
+    command: node
+    args: [example/server.js]
+    env:
+      # Fixtures that make the deliberately vulnerable example server leak on demand.
+      # Neither value is a real secret; example/fake-key holds the same fake key.
+      FAKE_SSH_KEY: "-----BEGIN OPENSSH PRIVATE KEY-----\nfakefakefake\n-----END OPENSSH PRIVATE KEY-----"
+      FAKE_API_KEY: "sk-d3m0fakekey12345678901"
+
+defaults:
+  timeoutMs: 15000
+
+tests:
+  - name: echo roundtrip
+    server: notes
+    tool: echo
+    arguments: {message: hello}
+    assert:
+      contains: hello
+      isError: false
+      maxLatencyMs: 2000
+
+  - name: tools list contains echo
+    server: notes
+    listTools: true
+    assert:
+      toolsContain: [echo, read_notes]
+
+  - name: echo structured content schema
+    server: notes
+    tool: echo
+    arguments: {message: schema-check}
+    assert:
+      jsonSchema:
+        type: object
+        required: [reply]
+        properties:
+          reply: {type: string}
+
+security:
+  - server: notes
+    tool: read_notes
+    probes: all

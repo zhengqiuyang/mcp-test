@@ -1,0 +1,47 @@
+{
+  "name": "mcp-test",
+  "version": "0.1.0",
+  "description": "Functional + security testing framework for MCP (Model Context Protocol) servers. YAML test cases, stdio JSON-RPC round-trips, prompt-injection probes, CI-ready reports.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "mcp-test": "dist/src/cli.js"
+  },
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
+  "files": [
+    "dist/src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/test/*.test.js\"",
+    "demo": "node dist/src/cli.js -c example/mcp-test.yaml"
+  },
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "testing",
+    "security",
+    "prompt-injection",
+    "ci",
+    "json-rpc",
+    "llm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcp-test/mcp-test.git"
+  }
+}
