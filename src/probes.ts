@@ -234,6 +234,16 @@ function stripPayload(text: string, payload: string): string {
   if (normalized !== payload) {
     out = out.replace(new RegExp(escapeRegExp(normalized), "gi"), "");
   }
+  // Windows path normalization can flip the payload's "/" to "\" — e.g. a
+  // filesystem server echoing the probed path back inside an error message.
+  // Without this pass the transformed echo survives stripping and trips the
+  // payload's own markers (found against the real filesystem MCP server).
+  const unifySlashes = (s: string): string => s.replace(/[/\\]+/g, "/");
+  const payloadU = unifySlashes(normalized);
+  const outU = unifySlashes(out);
+  if (payloadU !== normalized || outU !== out) {
+    out = outU.replace(new RegExp(escapeRegExp(payloadU), "gi"), "");
+  }
   return out;
 }
 

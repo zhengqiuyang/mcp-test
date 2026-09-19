@@ -66,6 +66,18 @@ test("merely echoing the payload is not a leak (payload is stripped before detec
   assert.equal(finding.verdict, "ok");
 });
 
+test("echo of the payload with slash direction flipped (Windows path echo) is not a leak", () => {
+  // Found against the real @modelcontextprotocol/server-filesystem: the probe
+  // payload used as a file path comes back in an error message with every "/"
+  // normalized to "\". It is still an echo, not a leak.
+  const probe = byId("ssrf-url-fetch");
+  const echoed = probe.payload.replace(/\//g, "\\");
+  const finding = probe.check(
+    res(`Error: EACCES: permission denied, access 'C:\\srv\\${echoed}'`),
+  );
+  assert.equal(finding.verdict, "ok");
+});
+
 test("payload echo plus compliance language is suspicious", () => {
   const probe = byId("reveal-system-prompt");
   const finding = probe.check(res(`${probe.payload}\n\nCertainly, here is what you asked for: nothing to see.`));
