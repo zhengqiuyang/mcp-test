@@ -1,7 +1,7 @@
 {
   "name": "mcp-test",
   "version": "0.2.0",
-  "description": "Functional + security testing framework for MCP (Model Context Protocol) servers. YAML test cases, stdio JSON-RPC round-trips, prompt-injection probes, CI-ready reports.",
+  "description": "Functional + security testing for MCP servers, plus a schema-drift upgrade gate (snapshot + diff)",
   "type": "module",
   "license": "MIT",
   "bin": {
@@ -11,14 +11,16 @@
     ".": "./dist/src/index.js"
   },
   "files": [
-    "dist/src",
+    "dist",
+    "example",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node run-tests.mjs",
-    "demo": "node dist/src/cli.js -c example/mcp-test.yaml"
+    "demo": "node dist/src/cli.js -c example/mcp-test.yaml",
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "yaml": "^2.7.0"
@@ -28,20 +30,17 @@
     "typescript": "^5.5.0"
   },
   "engines": {
-    "node": ">=18.17"
+    "node": ">=20"
   },
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "testing",
-    "security",
+    "security-testing",
     "prompt-injection",
-    "ci",
-    "json-rpc",
-    "llm"
+    "ci"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mcp-test/mcp-test.git"
+    "url": "git+https://github.com/zhengqiuyang/mcp-test.git"
   }
 }
