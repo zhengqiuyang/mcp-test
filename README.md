@@ -11,7 +11,7 @@ flags responses that leak secrets.
 
 Designed for CI first:
 
-- **One command.** `npx mcp-test -c mcp-test.yaml`
+- **One command.** `npx @zhengqiuyang/mcp-test -c mcp-test.yaml`
 - **One exit code.** `0` green, `1` test failure or leak, `2` config/harness error.
 - **Native reporters.** Human console output, machine-readable JSON, and GitHub Actions annotations
   (`::error file=…,line=…`) that point straight at the failing YAML entry.
@@ -356,7 +356,7 @@ jobs:
         with:
           node-version: 22
       - run: npm install          # or npm ci — mcp-test can be a devDependency
-      - run: npx mcp-test -c mcp-test.yaml --format github
+      - run: npx @zhengqiuyang/mcp-test -c mcp-test.yaml --format github
 ```
 
 `--format github` prints `::error`/`::warning` workflow commands with `file=`/`line=` pointing at the

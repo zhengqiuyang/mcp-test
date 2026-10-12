@@ -1,5 +1,5 @@
 {
-  "name": "mcp-test",
+  "name": "@zhengqiuyang/mcp-test",
   "version": "0.2.0",
   "description": "Functional + security testing for MCP servers, plus a schema-drift upgrade gate (snapshot + diff)",
   "type": "module",
@@ -42,5 +42,8 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zhengqiuyang/mcp-test.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
